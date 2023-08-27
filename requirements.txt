@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+mysql-connector-python
+schedule
+selenium
+datetime
+validators
+telegram

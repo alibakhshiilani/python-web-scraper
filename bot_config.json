@@ -1,0 +1,16 @@
+[
+    {
+        "messanger":"telegram",
+        "api_key":"YOUR_API_KEY",
+        "channel_id":"@channel_id",
+        "time_between_schedule":"",
+        "base_url":"http://localhost.com:8080/"
+    },
+    {
+        "messanger":"bale",
+        "api_key":"YOUR_API_KEY",
+        "channel_id":"@channel_id",
+        "time_between_schedule":"",
+        "base_url":"http://localhost.com:8080/"
+    }
+]
