@@ -1,0 +1,5 @@
+Attaching to python-web-scraper-app-1, python-web-scraper-mysql-1
+python-web-scraper-mysql-1  | 2024-02-18 14:34:55+00:00 [Note] [Entrypoint]: Switching to dedicated user 'mysql'
+python-web-scraper-mysql-1  | 2024-02-18 14:34:55+00:00 [Note] [Entrypoint]: Entrypoint script for MySQL Server 8.1.0-1.el8 started.
+python-web-scraper-app-1 exited with code 1
+python-web-scraper-mysql-1  | '/var/lib/mysql/mysql.sock' -> '/var/run/mysqld/mysqld.sock'

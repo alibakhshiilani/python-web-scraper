@@ -1,0 +1,24 @@
+services:
+  mysql:
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "pass"
+      MYSQL_DATABASE: mydatabase
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+  
+  app:
+    build: .
+    depends_on:
+      - mysql
+    volumes:
+      - ./config:/app/config
+      - ./bot:/app/bot
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=pass
+      - MYSQL_DB=mydatabase

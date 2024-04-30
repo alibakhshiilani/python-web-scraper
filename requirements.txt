@@ -5,4 +5,7 @@ schedule
 selenium
 datetime
 validators
-telegram
+python-telegram-bot
+boto3
+pymongo
+unicode-slugify

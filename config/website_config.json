@@ -1,0 +1,76 @@
+[
+    {        
+        "name": "Entekhab News Agency",
+        "is_spa":false,
+        "base_url":"https://www.entekhab.ir",
+        "source_id":1,
+        "html_schema":{
+            "top_base_class":{
+                "tag":"div",
+                "class":"im-news-contents"
+            },
+            "items_base_class":{
+                "tag":"div",
+                "class":"im-news-content"
+            },
+            "title":"h2",
+            "description":{
+                "tag":"div",
+                "class":"im-news-sub"
+            },
+            "image":"img",
+            "url":"a"
+        },
+        "categories":[
+            {
+                "url": "https://www.entekhab.ir/fa/services/5",
+                "category_id":1
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/2",
+                "category_id":2
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/3",
+                "category_id":16
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/history",
+                "category_id":3
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/4",
+                "category_id":17
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/8",
+                "category_id":6
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/18",
+                "category_id":7
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/10",
+                "category_id":8
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/services/10",
+                "category_id":1
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/sport",
+                "category_id":3
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/health",
+                "category_id":5
+            },
+            {
+                "url": "https://www.entekhab.ir/fa/sport",
+                "category_id":3
+            }
+
+        ]
+    }
+]

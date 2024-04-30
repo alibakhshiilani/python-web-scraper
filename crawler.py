@@ -1,156 +1,199 @@
 import json
-import hashlib
-import mysql.connector
+import sys, os
 import requests
-import validators
+import hashlib
+from datetime import datetime
 import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+from typing import Dict, Any
 from bs4 import BeautifulSoup
-import os
-from datetime import datetime
+# import mysql.connector
 from bot import TelegramBot
+import validators
+import boto3
+from slugify import slugify
+import pymongo
 
-image_path = './'
 
-def slug(string):
-    word_list = string.split()
-    return "-".join(word_list)
+class Crawler:
+    def __init__(self, website_config: Dict[str, Any], db_config: Dict[str, Any], bot_config: Dict[str, Any]):
+        self.website_config = website_config
+        self.db_config = db_config
+        self.bot_config = bot_config
+        self.db = None
+        self.cursor = None
 
-import os
-import time
-import requests
-import hashlib
-from datetime import datetime
+    def setup_database(self):
+        # self.db = mysql.connector.connect(**self.db_config)
+        my_client = pymongo.MongoClient("mongodb://admin:1q2w3e@localhost:27017/")
+        self.db = my_client["newsportal"]
+        # self.cursor = self.db.cursor()
+        self.create_tables()
 
-def download_image(url, save_path):
-    now = datetime.now()
-    year = str(now.year)
-    month = str(now.month).zfill(2)
-    day = str(now.day).zfill(2)
-    folder_path = os.path.join(save_path, year, month, day)
-    os.makedirs(folder_path, exist_ok=True)
+    def create_tables(self):
+        collection_ist = self.db.list_collection_names()
+        if "news" in collection_ist:
+            print("The collection exists.")
+            
 
-    max_retries = 3
-    timeout = 60
-    retry_delay = 5
-    
-    for attempt in range(max_retries):
+
+    def fetch_proxies(self):
         try:
-            response = requests.get(url, timeout=timeout)
-            if response.status_code == 200: 
-                print("Request successful")
-                break
-            else:
-                print(f"Request attempt {attempt + 1} failed with status code {response.status_code}")
-        except requests.Timeout:
-            print(f"Request attempt {attempt + 1} timed out.")
-        except requests.RequestException as e:
-            print(f"An error occurred on attempt {attempt + 1}: {e}")
+            response = requests.get("https://api.getproxylist.com/proxy")
+            return response.json()
+        except Exception as e:
+            print(f"Failed to fetch proxy list: {e}")
+            return None
 
-        if attempt < max_retries - 1:
-            print(f"Retrying in {retry_delay} seconds...")
-            time.sleep(retry_delay)
+    def upload_image(self, url: str, save_path: str) -> str:
+        now = datetime.now()
+        year = str(now.year)
+        month = str(now.month).zfill(2)
+        day = str(now.day).zfill(2)
+        folder_path = os.path.join(save_path, year, month, day)
+        os.makedirs(folder_path, exist_ok=True)
 
-    content = response.content
-
-    md5_hash = hashlib.md5(content).hexdigest()
-    ext = url.split(".")
-    image_format = ext[-1].split("?")[0]
-    file_path = os.path.join(folder_path, md5_hash + '.' + image_format)
-    
-    with open(file_path, 'wb') as f:
-        f.write(content)
-
-    return md5_hash + "." + image_format
-
-
-with open('website_config.json', 'r') as f:
-    website_configs = json.load(f)
-    
-with open('bot_config.json', 'r') as f:
-    bot_config = json.load(f)
-
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="",
-    database="mydatabase"
-)
-cursor = db.cursor()
-
-def crawl_website(website_config):
-
-    print(f"Crawling website: {website_config['name']}")
-
-    categories = website_config['categories']
-
-    try:
-        for category in categories:
-            max_retries = 5
-            timeout = 60
-            for attempt in range(max_retries):
-                try:
-                    response = requests.get(category["url"], timeout=timeout)
-                    response.raise_for_status()
-                    print("Request successful:")
+        max_retries = 3
+        timeout = 60
+        retry_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, timeout=timeout)
+                if response.status_code == 200: 
+                    print("Request successful")
                     break
-                except requests.Timeout:
-                    print(f"Request attempt {attempt + 1} timed out.")
-                except requests.RequestException as e:
-                    print(f"An error occurred on attempt {attempt + 1}:", e)
+                else:
+                    print(f"Request attempt {attempt + 1} failed with status code {response.status_code}")
+            except requests.Timeout:
+                print(f"Request attempt {attempt + 1} timed out.")
+            except requests.RequestException as e:
+                print(f"An error occurred on attempt {attempt + 1}: {e}")
 
-                if attempt < max_retries - 1:
-                    print("Retrying...")    
+            if attempt < max_retries - 1:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
 
-            if response.status_code == 200:
+        content = response.content
+
+        md5_hash = hashlib.md5(content).hexdigest()
+        ext = url.split(".")
+        image_format = ext[-1].split("?")[0]
+        # file_path = os.path.join(folder_path, md5_hash + '.' + image_format)
+        
+        # with open(file_path, 'wb') as f:
+        #     f.write(content)
+
+        session = boto3.Session(
+            aws_access_key_id='',
+            aws_secret_access_key='',
+            region_name='ir-thr-at1',
+        )
+
+        s3 = session.resource("s3",
+            endpoint_url='https://s3.ir-thr-at1.arvanstorage.ir',
+        )
+
+        # response = s3.client.put(Bucket="gpnews", Key=md5_hash + "." + image_format, Body=content)
+
+        bucket = s3.Bucket("gpnews")
+        obj = bucket.Object(md5_hash + "." + image_format)
+        obj.put(Body=content)
+
+        # print(response)
+        return md5_hash + "." + image_format
+
+
+    def slug(self, string: str) -> str:
+        return slugify(string)
+
+    def crawl_website(self, website_config: Dict[str, Any]):
+        print(f"Crawling website: {website_config['name']}")
+        categories = website_config['categories']
+
+        try:
+            for category in categories:
+                response = requests.get(category["url"])
+                response.raise_for_status()
                 soup = BeautifulSoup(response.content, 'html.parser')
+                html_schema = website_config["html_schema"]
 
-            print(f"Page loaded successfully: {category['url']}")  
+                if "id" in html_schema["top_base_class"]:
+                    parent = soup.find(html_schema["top_base_class"]["tag"], id=html_schema["top_base_class"]["id"])
+                else:
+                    parent = soup.find(html_schema["top_base_class"]["tag"], class_=html_schema["top_base_class"]["class"])
 
-            html_schema = website_config["html_schema"]  
-            
-            for post in soup.find(html_schema["top_base_class"]["tag"],class_=html_schema["top_base_class"]["class"]).find_all(html_schema["items_base_class"]["tag"], class_=html_schema["items_base_class"]["class"]):
-                title = post.find(html_schema["title"]).text.strip()
-                description = post.find(html_schema["description"]).text.strip()
-                image_url = post.find(html_schema["image"])['src']
-                post_url = post.find(html_schema["url"])['href']
+                if "id" in html_schema["items_base_class"]:
+                    items = parent.find_all(html_schema["items_base_class"]["tag"], id=html_schema["items_base_class"]["id"])
+                else:
+                    items = parent.find_all(html_schema["items_base_class"]["tag"], class_=html_schema["items_base_class"]["class"])
 
-                if not validators.url(post_url):
-                    print(f"{website_config['base_url']}{post_url}")
-                    post_url = f"{website_config['base_url']}{post_url}"
-                    
-                post_hash = hashlib.sha256((title + description + image_url).encode()).hexdigest()
+                for post in items:
+                    title = post.find(html_schema["title"]).text.strip()
+                    description = post.find(html_schema["description"]["tag"], class_=html_schema["description"]["class"]).text.strip()
+                    image_url = post.find(html_schema["image"])['src']
+                    post_url = post.find(html_schema["url"])['href']
 
-                print(f"Saving Post : {post_hash}")
+                    if not validators.url(post_url):
+                        post_url = f"{website_config['base_url']}{post_url}"
 
-                cursor.execute("SELECT COUNT(*) FROM news WHERE hash=%s", (post_hash,))
-                if cursor.fetchone()[0] == 0:
-                    if validators.url(image_url):
-                        image_name = download_image(image_url,image_path)
-                        cursor.execute("INSERT INTO news (category_id,title, description, media, hash,url,slug) VALUES (%s, %s, %s, %s, %s,%s,%s)",
-                                    (category["category_id"],title, description, image_name, post_hash,post_url,slug(title)))
-                        db.commit()
-                        last_inserted_id = cursor.lastrowid
-                        telegrabBot = TelegramBot()
-                        telegrabBot.send_photo(url=f"{bot_config['base_url']}{last_inserted_id}",image_url=image_url,title=title,description=description)
-                        time.sleep(1)
-                else :
-                    print(f"Skipping Post : {post_hash} already exist !")        
-            
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        print("Retrying ...")
-        print(f"Start Again crawling proccess")
-        crawl_website(website_config)
+                    post_hash = hashlib.sha256((title + description + image_url).encode()).hexdigest()
 
-def main():
-    sleep_time = 30
-    for website_config in website_configs:
-        print(f"Start crawling proccess")
-        crawl_website(website_config)
-        print(f"Stop For {sleep_time} seconds until next crawl")
-        time.sleep(sleep_time)
+                    print(f"Scrapping Post : {post_hash}")
+
+                    existing_news = self.db.news.find_one({"hash": post_hash})
+
+                    if existing_news:
+                        print("Post exists already !")
+                        if category["category_id"] not in existing_news["categories"]:
+                            self.db.news.update_one({"_id": existing_news["_id"]}, {"$addToSet": {"categories": category["category_id"]}})
+                            print("Post exist but added to current category")
+                        if website_config["source_id"] not in existing_news["sources"]:
+                            self.db.news.update_one({"_id": existing_news["_id"]}, {"$addToSet": {"sources": website_config["source_id"]}})
+                            print("Post exist but added to current source")
+
+                    else:
+                        if validators.url(image_url):
+                            image_name = self.upload_image(image_url,image_path)
+                            news_doc = {
+                                "title": title,
+                                "description": description,
+                                "media": image_name,
+                                "hash": post_hash,
+                                "url": post_url,
+                                "slug": self.slug(title),
+                                "categories": [category["category_id"]],
+                                "sources": [website_config["source_id"]],
+                                "created_at": datetime.utcnow()
+                            }
+                            self.db.news.insert_one(news_doc)
+                            print("Post added successfully")
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            print("Retrying...")
+            print("Start Again crawling process")
+            self.crawl_website(website_config)
+
+    def main(self):
+        sleep_time = 3
+        while True:
+            for wc in self.website_config:
+                print(f"Start crawling process")
+                self.crawl_website(wc)
+                print(f"Stop For {sleep_time} seconds until next crawl")
+                time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    main()
+    with open('config/website_config.json', 'r') as f:
+        website_config = json.load(f)
+
+    with open('config/database_config.json', 'r') as f:
+        database_config = json.load(f)
+    
+    with open('config/bot_config.json', 'r') as f:
+        bot_config = json.load(f)
+
+    image_path = './'  # Update with your image path
+    crawler = Crawler(website_config, database_config, bot_config)
+    crawler.setup_database()
+    crawler.main()
