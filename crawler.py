@@ -1,5 +1,5 @@
 import json
-import sys, os
+import os
 import requests
 import hashlib
 from datetime import datetime
@@ -12,7 +12,6 @@ import validators
 import boto3
 from slugify import slugify
 import pymongo
-
 
 class Crawler:
     def __init__(self, website_config: Dict[str, Any], db_config: Dict[str, Any], bot_config: Dict[str, Any]):
@@ -166,22 +165,38 @@ class Crawler:
                                 "created_at": datetime.utcnow()
                             }
                             self.db.news.insert_one(news_doc)
+                            last_news = self.db.news.find({}).sort({"_id":-1}).limit(1)
+                            if html_schema["tags"]:
+                                try:
+                                    response = requests.get(post_url)
+                                    response.raise_for_status()
+                                    soup = BeautifulSoup(response.content, 'html.parser') # here !
+                                    tags = []
+                                    if "id" in html_schema["tags"]:
+                                        tags = parent.find_all(html_schema["tags"]["tag"], id=html_schema["tags"]["id"])
+                                    else:
+                                        tags = parent.find_all(html_schema["tags"]["tag"], class_=html_schema["tags"]["class"])
+
+                                    for tag in tags:
+                                        self.db.news.update_one({"_id": last_news["_id"]}, {"$addToSet": {"tags": tag.text.strip()}})
+                                except Exception as e:
+                                    print(f"An error occurred in TAGS scrapping : {e}")
+                                
                             print("Post added successfully")
 
         except Exception as e:
             print(f"An error occurred: {e}")
             print("Retrying...")
             print("Start Again crawling process")
-            self.crawl_website(website_config)
+            # self.crawl_website(website_config)
 
     def main(self):
         sleep_time = 3
-        while True:
-            for wc in self.website_config:
-                print(f"Start crawling process")
-                self.crawl_website(wc)
-                print(f"Stop For {sleep_time} seconds until next crawl")
-                time.sleep(sleep_time)
+        for wc in self.website_config:
+            print(f"Start crawling process")
+            self.crawl_website(wc)
+            print(f"Stop For {sleep_time} seconds until next crawl")
+            time.sleep(sleep_time)
 
 if __name__ == "__main__":
     with open('config/website_config.json', 'r') as f:
